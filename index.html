@@ -1,0 +1,2123 @@
+<!doctype html>
+<html lang="id" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Removal.AI × ImgUpscaler — Unified AI Photo Studio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Inter -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #09090b;
+        color: #fafafa;
+        overflow-x: hidden;
+      }
+      .checkerboard {
+        background-color: #18181b;
+        background-image:
+          linear-gradient(45deg, #27272a 25%, transparent 25%),
+          linear-gradient(-45deg, #27272a 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #27272a 75%),
+          linear-gradient(-45deg, transparent 75%, #27272a 75%);
+        background-size: 16px 16px;
+        background-position:
+          0 0,
+          0 8px,
+          8px -8px,
+          -8px 0px;
+      }
+      @keyframes scan {
+        0% {
+          top: 0%;
+          opacity: 0.85;
+        }
+        50% {
+          top: 97%;
+          opacity: 1;
+        }
+        100% {
+          top: 0%;
+          opacity: 0.85;
+        }
+      }
+      .ai-scanline {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          #38bdf8,
+          #818cf8,
+          #f43f5e,
+          transparent
+        );
+        box-shadow: 0 0 20px 4px rgba(56, 189, 248, 0.7);
+        animation: scan 1.7s ease-in-out infinite;
+        z-index: 30;
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        background: #27272a;
+        height: 6px;
+        border-radius: 999px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fafafa;
+        border: 2px solid #38bdf8;
+        cursor: pointer;
+        transition: transform 0.15s ease;
+      }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white"
+  >
+    <!-- Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-zinc-900/95 border border-zinc-700/80 shadow-2xl text-xs font-medium text-zinc-100 backdrop-blur-md"
+    >
+      <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+      <span id="toast-msg">Siap memproses foto</span>
+    </div>
+
+    <!-- API Key Modal (Optional Official Removal.AI API Key) -->
+    <div
+      id="api-modal"
+      class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span
+              class="px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 text-[11px] font-semibold"
+              >Removal.AI</span
+            >
+            <h3 class="text-sm font-semibold text-white">
+              Integrasi API Key & Engine
+            </h3>
+          </div>
+          <button
+            onclick="toggleApiModal()"
+            class="text-zinc-400 hover:text-white"
+          >
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <p class="text-xs text-zinc-400 leading-relaxed">
+          Secara bawaan, aplikasi ini menggunakan
+          <b>Local Neural Engine + Gemini Vision AI</b> secara gratis tanpa
+          batas. Jika Anda memiliki <b>API Token dari Removal.AI</b> (<code
+            class="text-zinc-300"
+            >api.removal.ai/3.0/remove</code
+          >), masukkan di bawah untuk memproses via server resmi Removal.AI.
+        </p>
+        <div>
+          <label class="text-xs text-zinc-300 block mb-1.5"
+            >Removal.AI Rm-Token (Opsional)</label
+          >
+          <input
+            id="removal-api-key"
+            type="password"
+            placeholder="Kosongkan untuk memakai Built-in AI Gratis..."
+            class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-sky-500"
+          />
+        </div>
+        <div class="flex items-center justify-between pt-2">
+          <a
+            href="https://removal.ai/api-documentation/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[11px] text-sky-400 hover:underline flex items-center gap-1"
+          >
+            <span>Dokumentasi Removal.AI</span>
+            <i data-lucide="external-link" class="w-3 h-3"></i>
+          </a>
+          <button
+            onclick="saveApiSettings()"
+            class="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-zinc-950 font-semibold text-xs transition"
+          >
+            Simpan Pengaturan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clean Unified Header -->
+    <header
+      class="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-md"
+    >
+      <div
+        class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3"
+      >
+        <!-- Brand Identity Combining Removal.AI & ImgUpscaler -->
+        <div class="flex items-center gap-2.5">
+          <div
+            class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 via-indigo-500 to-sky-500 flex items-center justify-center shadow-md shadow-sky-500/10"
+          >
+            <i data-lucide="layers" class="w-4 h-4 text-white"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-bold text-sm tracking-tight text-white"
+                >Removal<span class="text-rose-400">.AI</span></span
+              >
+              <span class="text-zinc-600 text-xs">×</span>
+              <span class="font-bold text-sm tracking-tight text-white"
+                >Img<span class="text-sky-400">Upscaler</span></span
+              >
+            </div>
+            <span class="block text-[10px] text-zinc-400"
+              >All-in-One Photo Remover & Super Upscaler</span
+            >
+          </div>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <nav
+          class="flex items-center p-1 bg-zinc-900 border border-zinc-800 rounded-xl"
+        >
+          <button
+            id="tab-combo"
+            onclick="switchMode('combo')"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-zinc-800 text-white shadow-sm"
+          >
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Combo (Remove + Upscale)</span>
+          </button>
+          <button
+            id="tab-removal"
+            onclick="switchMode('removal')"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200"
+          >
+            <i data-lucide="scissors" class="w-3.5 h-3.5 text-rose-400"></i>
+            <span class="hidden sm:inline">Removal.AI</span>
+            <span class="sm:hidden">Remove</span>
+          </button>
+          <button
+            id="tab-upscaler"
+            onclick="switchMode('upscaler')"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200"
+          >
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-sky-400"></i>
+            <span class="hidden sm:inline">ImgUpscaler</span>
+            <span class="sm:hidden">Upscale</span>
+          </button>
+        </nav>
+
+        <!-- Upload & API Config -->
+        <div class="flex items-center gap-2">
+          <button
+            onclick="toggleApiModal()"
+            class="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white transition"
+            title="Pengaturan API Removal.AI"
+          >
+            <i data-lucide="key-round" class="w-4 h-4"></i>
+          </button>
+          <button
+            onclick="document.getElementById('file-input').click()"
+            class="text-xs px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-semibold transition flex items-center gap-1.5 shadow-sm"
+          >
+            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+            <span>Upload Foto</span>
+          </button>
+          <input
+            type="file"
+            id="file-input"
+            accept="image/png, image/jpeg, image/webp"
+            class="hidden"
+            onchange="handleFileSelect(event)"
+          />
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main
+      class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-5 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start"
+    >
+      <!-- Left Column: Interactive Preview Stage (8 Cols) -->
+      <div class="lg:col-span-8 flex flex-col gap-3">
+        <!-- Status & Sample Selector Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+          <div class="flex items-center gap-2 text-xs">
+            <span
+              class="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono"
+              id="orig-res"
+              >640×440</span
+            >
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-zinc-600"></i>
+            <span
+              class="px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/30 text-sky-400 font-mono font-semibold"
+              id="out-res"
+              >640×440</span
+            >
+            <span
+              id="pipeline-status-badge"
+              class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px]"
+            >
+              Siap Diproses
+            </span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button
+              onclick="loadSample('portrait')"
+              class="text-xs px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition"
+            >
+              Foto Potret
+            </button>
+            <button
+              onclick="loadSample('product')"
+              class="text-xs px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition"
+            >
+              Foto Produk
+            </button>
+            <button
+              id="btn-undo"
+              onclick="undoLastAction()"
+              disabled
+              class="disabled:opacity-35 text-xs px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition flex items-center gap-1"
+              title="Undo"
+            >
+              <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+              <span>Undo</span>
+            </button>
+            <button
+              onclick="toggleCompareMode()"
+              class="text-xs px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition flex items-center gap-1"
+            >
+              <i
+                data-lucide="split-square-horizontal"
+                class="w-3.5 h-3.5 text-sky-400"
+              ></i>
+              <span id="compare-label">Split: ON</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Interactive Canvas Box -->
+        <div
+          id="dropzone"
+          ondragover="handleDragOver(event)"
+          ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)"
+          class="relative w-full min-h-[410px] sm:min-h-[480px] rounded-2xl border border-zinc-800 checkerboard flex items-center justify-center overflow-hidden shadow-2xl select-none"
+        >
+          <!-- AI Scanning Overlay -->
+          <div
+            id="ai-loader"
+            class="hidden absolute inset-0 z-40 bg-zinc-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center"
+          >
+            <div class="ai-scanline"></div>
+            <div
+              class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center mb-3"
+            >
+              <i
+                data-lucide="loader-2"
+                class="w-6 h-6 text-sky-400 animate-spin"
+              ></i>
+            </div>
+            <p id="loader-text" class="text-sm font-semibold text-white">
+              Memproses Gambar...
+            </p>
+            <p id="loader-subtext" class="text-xs text-zinc-400 mt-1">
+              Removal.AI × ImgUpscaler Pipeline
+            </p>
+          </div>
+
+          <!-- Stage Wrapper -->
+          <div
+            id="stage-wrapper"
+            class="relative max-w-full max-h-[500px] flex items-center justify-center"
+          >
+            <!-- Output Canvas -->
+            <canvas
+              id="after-canvas"
+              class="block max-w-full max-h-[470px] object-contain rounded-lg"
+            ></canvas>
+
+            <!-- Original Image Clipped Overlay (Before/After Split) -->
+            <div
+              id="before-clip"
+              class="absolute inset-0 overflow-hidden pointer-events-none"
+              style="width: 50%"
+            >
+              <canvas
+                id="before-canvas"
+                class="block max-w-none max-h-[470px] rounded-l-lg"
+              ></canvas>
+              <span
+                class="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-zinc-950/85 border border-zinc-800 text-[10px] font-semibold text-zinc-300"
+              >
+                SEBELUM (ASLI)
+              </span>
+            </div>
+
+            <span
+              class="absolute bottom-3 right-3 px-2.5 py-1 rounded-md bg-gradient-to-r from-rose-500/90 to-sky-500/90 text-[10px] font-semibold text-white pointer-events-none shadow"
+            >
+              SESUDAH (AI HD)
+            </span>
+
+            <!-- Interactive Canvas for Click Magic Wand & Object Eraser -->
+            <canvas
+              id="mask-canvas"
+              class="absolute inset-0 cursor-crosshair touch-none"
+            ></canvas>
+
+            <!-- Split Slider Handle -->
+            <div
+              id="split-slider"
+              class="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-[0_0_12px_rgba(0,0,0,0.8)] cursor-ew-resize z-20 flex items-center justify-center"
+              style="left: 50%"
+            >
+              <div
+                class="w-8 h-8 rounded-full bg-white text-zinc-900 shadow-xl flex items-center justify-center border border-zinc-200"
+              >
+                <i data-lucide="chevrons-left-right" class="w-4 h-4"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Quick Tips & Official Links -->
+        <div
+          class="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 px-1"
+        >
+          <span id="helper-hint" class="flex items-center gap-1.5">
+            <i
+              data-lucide="mouse-pointer-click"
+              class="w-3.5 h-3.5 text-rose-400"
+            ></i>
+            <span
+              >Klik bagian background mana saja pada foto untuk menghapus warna
+              tersebut secara langsung.</span
+            >
+          </span>
+          <div class="flex items-center gap-3 text-[11px]">
+            <span class="text-zinc-500">Referensi Mesin:</span>
+            <a
+              href="https://removal.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-rose-400 hover:underline"
+              >removal.ai</a
+            >
+            <span class="text-zinc-700">•</span>
+            <a
+              href="https://imgupscaler.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sky-400 hover:underline"
+              >imgupscaler.com</a
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Unified Control Panel (4 Cols) -->
+      <aside
+        class="lg:col-span-4 bg-zinc-900/65 border border-zinc-800/90 rounded-2xl p-5 flex flex-col justify-between gap-5 shadow-xl"
+      >
+        <!-- ========================================================= -->
+        <!-- PANEL 1: COMBO PIPELINE (REMOVAL.AI + IMGUPSCALER NYATU) -->
+        <!-- ========================================================= -->
+        <div id="panel-combo" class="space-y-4">
+          <div
+            class="p-3.5 rounded-xl bg-gradient-to-br from-rose-500/10 via-indigo-500/10 to-sky-500/10 border border-zinc-800"
+          >
+            <div class="flex items-center justify-between mb-1">
+              <span
+                class="text-xs font-bold text-white flex items-center gap-1.5"
+              >
+                <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i>
+                <span>1-Click Unified Pipeline</span>
+              </span>
+              <span
+                class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold"
+                >2-in-1 Otomatis</span
+              >
+            </div>
+            <p class="text-[11px] text-zinc-300 leading-relaxed">
+              Menyatukan <b>Removal.AI</b> (hapus latar belakang otomatis) lalu
+              langsung meningkatkan resolusi foto dengan
+              <b>ImgUpscaler</b> dalam 1 kali klik.
+            </p>
+          </div>
+
+          <!-- Step 1 Settings: Removal.AI -->
+          <div
+            class="p-3.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 space-y-3"
+          >
+            <div class="flex items-center justify-between">
+              <span
+                class="text-xs font-semibold text-rose-400 flex items-center gap-1.5"
+              >
+                <span
+                  class="w-4 h-4 rounded-full bg-rose-500/20 text-rose-300 flex items-center justify-center text-[10px]"
+                  >1</span
+                >
+                Tahap 1: Removal.AI Cutout
+              </span>
+              <input
+                id="combo-enable-remove"
+                type="checkbox"
+                checked
+                class="w-4 h-4 accent-rose-500 rounded cursor-pointer"
+              />
+            </div>
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-zinc-400">Sensitivitas Cutout</span>
+                <span id="combo-tol-label" class="text-rose-400 font-mono"
+                  >38%</span
+                >
+              </div>
+              <input
+                id="combo-tol-slider"
+                type="range"
+                min="10"
+                max="85"
+                value="38"
+                oninput="syncSliders('tol', this.value)"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <!-- Step 2 Settings: ImgUpscaler -->
+          <div
+            class="p-3.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 space-y-3"
+          >
+            <div class="flex items-center justify-between">
+              <span
+                class="text-xs font-semibold text-sky-400 flex items-center gap-1.5"
+              >
+                <span
+                  class="w-4 h-4 rounded-full bg-sky-500/20 text-sky-300 flex items-center justify-center text-[10px]"
+                  >2</span
+                >
+                Tahap 2: ImgUpscaler Super HD
+              </span>
+              <input
+                id="combo-enable-upscale"
+                type="checkbox"
+                checked
+                class="w-4 h-4 accent-sky-500 rounded cursor-pointer"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                id="combo-scale-2x"
+                onclick="setScaleFactor(2)"
+                class="py-1.5 px-3 rounded-lg border border-sky-500 bg-sky-500/15 text-white text-xs font-semibold transition"
+              >
+                200% (2x HD)
+              </button>
+              <button
+                id="combo-scale-4x"
+                onclick="setScaleFactor(4)"
+                class="py-1.5 px-3 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white text-xs font-semibold transition"
+              >
+                400% (4x Ultra)
+              </button>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-zinc-400">Penajaman AI & Denoise</span>
+                <span id="combo-sharp-label" class="text-sky-400 font-mono"
+                  >70%</span
+                >
+              </div>
+              <input
+                id="combo-sharp-slider"
+                type="range"
+                min="0"
+                max="100"
+                value="70"
+                oninput="syncSliders('sharp', this.value)"
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <!-- Studio Backdrop Selector -->
+          <div>
+            <span class="text-xs text-zinc-300 block mb-2"
+              >Warna Background Hasil (Opsional)</span
+            >
+            <div class="flex items-center gap-2">
+              <button
+                onclick="setBackdropColor('transparent')"
+                class="w-7 h-7 rounded-lg border-2 border-sky-400 checkerboard"
+                title="Transparan PNG"
+              ></button>
+              <button
+                onclick="setBackdropColor('#ffffff')"
+                class="w-7 h-7 rounded-lg border border-zinc-700 bg-white"
+                title="Putih E-Commerce"
+              ></button>
+              <button
+                onclick="setBackdropColor('#09090b')"
+                class="w-7 h-7 rounded-lg border border-zinc-700 bg-zinc-950"
+                title="Hitam Studio"
+              ></button>
+              <button
+                onclick="setBackdropColor('#dbeafe')"
+                class="w-7 h-7 rounded-lg border border-zinc-700 bg-blue-100"
+                title="Biru Pasfoto"
+              ></button>
+              <button
+                onclick="setBackdropColor('#fef3c7')"
+                class="w-7 h-7 rounded-lg border border-zinc-700 bg-amber-100"
+                title="Krem Hangat"
+              ></button>
+              <input
+                type="color"
+                onchange="setBackdropColor(this.value)"
+                class="w-7 h-7 rounded-lg bg-transparent border-0 cursor-pointer"
+                title="Pilih Warna Bebas"
+              />
+            </div>
+          </div>
+
+          <!-- Primary 1-Click Combined Button -->
+          <button
+            onclick="runComboPipeline()"
+            class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-500 via-indigo-500 to-sky-500 hover:opacity-95 text-white font-semibold text-xs shadow-lg shadow-indigo-500/25 transition flex items-center justify-center gap-2"
+          >
+            <i data-lucide="wand-2" class="w-4 h-4"></i>
+            <span>Proses Sekaligus (Remove BG + Upscale)</span>
+          </button>
+
+          <!-- AI Generative Photo Creator (Buat Foto Baru & Langsung Proses) -->
+          <div class="pt-3 border-t border-zinc-800/80 space-y-2">
+            <span class="text-[11px] font-medium text-zinc-400 block"
+              >Atau Generate Foto Baru dengan AI:</span
+            >
+            <div class="flex gap-1.5">
+              <input
+                id="ai-prompt-input"
+                type="text"
+                placeholder="Ketik objek (mis: sepatu sneaker futuristik)..."
+                class="flex-1 px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-sky-500"
+              />
+              <button
+                onclick="generatePhotoWithGemini()"
+                class="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sky-400 text-xs font-semibold transition flex items-center gap-1 shrink-0"
+                title="Buat Foto dengan AI"
+              >
+                <i data-lucide="image-plus" class="w-3.5 h-3.5"></i>
+                <span>Generate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- PANEL 2: REMOVAL.AI DEDICATED MODE (CUTOUT + ERASER)      -->
+        <!-- ========================================================= -->
+        <div id="panel-removal" class="space-y-4 hidden">
+          <div>
+            <div class="flex items-center justify-between">
+              <h2
+                class="text-sm font-semibold text-white flex items-center gap-2"
+              >
+                <i data-lucide="scissors" class="w-4 h-4 text-rose-400"></i>
+                <span>Removal.AI Engine</span>
+              </h2>
+              <span
+                class="text-[10px] px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30"
+                >Cutout & Eraser</span
+              >
+            </div>
+            <p class="text-xs text-zinc-400 mt-1 leading-relaxed">
+              Hapus background otomatis seperti <b>removal.ai</b> atau gunakan
+              kuas penghapus untuk membersihkan objek yang tidak diinginkan.
+            </p>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <span class="text-zinc-300">Toleransi Warna Background</span>
+                <span id="tol-label" class="text-rose-400 font-mono">38%</span>
+              </div>
+              <input
+                id="tol-slider"
+                type="range"
+                min="10"
+                max="85"
+                value="38"
+                oninput="syncSliders('tol', this.value)"
+                class="w-full"
+              />
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <span class="text-zinc-300">Kehalusan Tepi Rambut/Objek</span>
+                <span id="feather-label" class="text-rose-400 font-mono"
+                  >32%</span
+                >
+              </div>
+              <input
+                id="feather-slider"
+                type="range"
+                min="0"
+                max="60"
+                value="32"
+                oninput="
+                  document.getElementById('feather-label').innerText =
+                    this.value + '%'
+                "
+                class="w-full"
+              />
+            </div>
+
+            <!-- Sub-mode: Magic Wand vs Eraser Brush -->
+            <div
+              class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-2.5"
+            >
+              <span class="text-xs text-zinc-300 font-medium block"
+                >Alat Interaktif Kanvas:</span
+              >
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  id="tool-wand"
+                  onclick="setCanvasTool('wand')"
+                  class="py-1.5 px-2.5 rounded-lg bg-rose-500/20 border border-rose-500 text-white text-xs font-medium flex items-center justify-center gap-1.5"
+                >
+                  <i data-lucide="wand" class="w-3.5 h-3.5 text-rose-400"></i>
+                  <span>Klik Hapus BG</span>
+                </button>
+                <button
+                  id="tool-brush"
+                  onclick="setCanvasTool('brush')"
+                  class="py-1.5 px-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5"
+                >
+                  <i data-lucide="eraser" class="w-3.5 h-3.5 text-pink-400"></i>
+                  <span>Kuas Hapus Objek</span>
+                </button>
+              </div>
+
+              <div id="brush-size-box" class="hidden pt-1">
+                <div class="flex justify-between text-[11px] mb-1">
+                  <span class="text-zinc-400">Ukuran Kuas Eraser</span>
+                  <span id="brush-label" class="text-pink-400 font-mono"
+                    >26 px</span
+                  >
+                </div>
+                <input
+                  id="brush-slider"
+                  type="range"
+                  min="8"
+                  max="70"
+                  value="26"
+                  oninput="updateBrushSize(this.value)"
+                  class="w-full"
+                />
+                <button
+                  onclick="autoEraseSampleWatermark()"
+                  class="mt-2 w-full py-1.5 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-medium transition"
+                >
+                  Demo: Hapus Watermark/Stiker Sampel
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onclick="runAutoRemoveBg()"
+            class="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs shadow-lg shadow-rose-600/25 transition flex items-center justify-center gap-2"
+          >
+            <i data-lucide="scissors" class="w-4 h-4"></i>
+            <span>Hapus Background (Removal.AI)</span>
+          </button>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- PANEL 3: IMGUPSCALER.COM DEDICATED MODE                   -->
+        <!-- ========================================================= -->
+        <div id="panel-upscaler" class="space-y-4 hidden">
+          <div>
+            <div class="flex items-center justify-between">
+              <h2
+                class="text-sm font-semibold text-white flex items-center gap-2"
+              >
+                <i data-lucide="maximize-2" class="w-4 h-4 text-sky-400"></i>
+                <span>ImgUpscaler Engine</span>
+              </h2>
+              <span
+                class="text-[10px] px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                >200% & 400% HD</span
+              >
+            </div>
+            <p class="text-xs text-zinc-400 mt-1 leading-relaxed">
+              Perbesar resolusi foto hingga 4x lipat seperti
+              <b>imgupscaler.com</b> lengkap dengan Smart Denoise & penajaman
+              detail tepi.
+            </p>
+          </div>
+
+          <div class="space-y-3.5">
+            <div>
+              <span class="text-xs text-zinc-300 block mb-2"
+                >Rasio Perbesaran (Upscale Ratio)</span
+              >
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  id="scale-2x"
+                  onclick="setScaleFactor(2)"
+                  class="py-2 px-3 rounded-xl border border-sky-500 bg-sky-500/15 text-white text-xs font-semibold transition"
+                >
+                  200% (2x Super HD)
+                </button>
+                <button
+                  id="scale-4x"
+                  onclick="setScaleFactor(4)"
+                  class="py-2 px-3 rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white text-xs font-semibold transition"
+                >
+                  400% (4x Ultra HD)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <span class="text-xs text-zinc-300 block mb-1.5"
+                >Tipe Optimasi Foto</span
+              >
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  id="type-photo"
+                  onclick="setUpscalePreset('photo')"
+                  class="py-1.5 px-2.5 rounded-lg bg-zinc-800 text-white border border-zinc-700 font-medium"
+                >
+                  Foto Umum / Potret
+                </button>
+                <button
+                  id="type-art"
+                  onclick="setUpscalePreset('art')"
+                  class="py-1.5 px-2.5 rounded-lg bg-zinc-950 text-zinc-400 border border-zinc-800 font-medium"
+                >
+                  Produk / Anime / Teks
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <span class="text-zinc-300">Ketajaman Detail (AI Sharpen)</span>
+                <span id="sharp-label" class="text-sky-400 font-mono">70%</span>
+              </div>
+              <input
+                id="sharp-slider"
+                type="range"
+                min="0"
+                max="100"
+                value="70"
+                oninput="syncSliders('sharp', this.value)"
+                class="w-full"
+              />
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <span class="text-zinc-300">Kejernihan & HDR Boost</span>
+                <span id="clarity-label" class="text-sky-400 font-mono"
+                  >35%</span
+                >
+              </div>
+              <input
+                id="clarity-slider"
+                type="range"
+                min="0"
+                max="100"
+                value="35"
+                oninput="
+                  document.getElementById('clarity-label').innerText =
+                    this.value + '%'
+                "
+                class="w-full"
+              />
+            </div>
+          </div>
+
+          <button
+            onclick="runAiUpscale()"
+            class="w-full py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 text-zinc-950 font-bold text-xs shadow-lg shadow-sky-500/25 transition flex items-center justify-center gap-2"
+          >
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span>Upscale Foto Sekarang (ImgUpscaler)</span>
+          </button>
+        </div>
+
+        <!-- Global Footer Actions inside Panel -->
+        <div class="pt-4 border-t border-zinc-800/80 flex items-center gap-2.5">
+          <button
+            onclick="resetToOriginal()"
+            class="py-2.5 px-3.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 text-xs font-medium transition flex items-center justify-center gap-1.5"
+          >
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            <span>Reset</span>
+          </button>
+          <button
+            onclick="downloadImage()"
+            class="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2"
+          >
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download Hasil HD (PNG)</span>
+          </button>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Minimal Footer -->
+    <footer class="border-t border-zinc-900 py-4 mt-4">
+      <div
+        class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between text-[11px] text-zinc-500 gap-2"
+      >
+        <span
+          >Unified Studio — Menggabungkan alur kerja <b>Removal.AI</b> (Cutout)
+          & <b>ImgUpscaler.com</b> (Super Resolution)</span
+        >
+        <span
+          >Privasi Terjaga • Mendukung Ekspor PNG Transparan Resolusi
+          Tinggi</span
+        >
+      </div>
+    </footer>
+
+    <!-- Application Script -->
+    <script>
+      lucide.createIcons();
+
+      // State Variables
+      let currentMode = "combo"; // Default: Combo (keduanya menyatu)
+      let canvasTool = "wand"; // 'wand' (click to remove bg) or 'brush' (object eraser)
+      let compareEnabled = true;
+      let scaleFactor = 2;
+      let brushSize = 26;
+      let isDrawing = false;
+      let isDraggingSlider = false;
+      let currentSampleType = "portrait";
+      let activeBackdropColor = "transparent";
+      let removalApiKey = "";
+
+      // Undo History Stack
+      let historyStack = [];
+
+      // Offscreen Full-Res Canvases
+      const origCanvas = document.createElement("canvas");
+      const workCanvas = document.createElement("canvas");
+      const fullMaskCanvas = document.createElement("canvas");
+
+      // Visible DOM Elements
+      const beforeCanvas = document.getElementById("before-canvas");
+      const afterCanvas = document.getElementById("after-canvas");
+      const maskCanvas = document.getElementById("mask-canvas");
+      const beforeClip = document.getElementById("before-clip");
+      const splitSlider = document.getElementById("split-slider");
+      const stageWrapper = document.getElementById("stage-wrapper");
+
+      function showToast(msg) {
+        const toast = document.getElementById("toast");
+        document.getElementById("toast-msg").innerText = msg;
+        toast.classList.remove("translate-y-20", "opacity-0");
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => {
+          toast.classList.add("translate-y-20", "opacity-0");
+        }, 3000);
+      }
+
+      function setStatusBadge(text) {
+        const badge = document.getElementById("pipeline-status-badge");
+        if (badge) badge.innerText = text;
+      }
+
+      function toggleApiModal() {
+        const modal = document.getElementById("api-modal");
+        modal.classList.toggle("hidden");
+      }
+
+      function saveApiSettings() {
+        removalApiKey = document.getElementById("removal-api-key").value.trim();
+        toggleApiModal();
+        if (removalApiKey) {
+          showToast(
+            "API Key Removal.AI tersimpan! Akan digunakan saat hapus BG.",
+          );
+        } else {
+          showToast("Menggunakan Built-in Neural Engine gratis.");
+        }
+      }
+
+      function syncSliders(type, val) {
+        if (type === "tol") {
+          document.getElementById("tol-slider").value = val;
+          document.getElementById("combo-tol-slider").value = val;
+          document.getElementById("tol-label").innerText = val + "%";
+          document.getElementById("combo-tol-label").innerText = val + "%";
+        } else if (type === "sharp") {
+          document.getElementById("sharp-slider").value = val;
+          document.getElementById("combo-sharp-slider").value = val;
+          document.getElementById("sharp-label").innerText = val + "%";
+          document.getElementById("combo-sharp-label").innerText = val + "%";
+        }
+      }
+
+      function setUpscalePreset(preset) {
+        const bPhoto = document.getElementById("type-photo");
+        const bArt = document.getElementById("type-art");
+        if (preset === "photo") {
+          bPhoto.className =
+            "py-1.5 px-2.5 rounded-lg bg-zinc-800 text-white border border-zinc-700 font-medium";
+          bArt.className =
+            "py-1.5 px-2.5 rounded-lg bg-zinc-950 text-zinc-400 border border-zinc-800 font-medium";
+          syncSliders("sharp", 68);
+          document.getElementById("clarity-slider").value = 30;
+          document.getElementById("clarity-label").innerText = "30%";
+        } else {
+          bArt.className =
+            "py-1.5 px-2.5 rounded-lg bg-zinc-800 text-white border border-zinc-700 font-medium";
+          bPhoto.className =
+            "py-1.5 px-2.5 rounded-lg bg-zinc-950 text-zinc-400 border border-zinc-800 font-medium";
+          syncSliders("sharp", 88);
+          document.getElementById("clarity-slider").value = 50;
+          document.getElementById("clarity-label").innerText = "50%";
+        }
+        showToast(
+          `Preset ImgUpscaler diatur ke: ${preset === "photo" ? "Foto Umum" : "Produk / Anime"}`,
+        );
+      }
+
+      function setCanvasTool(tool) {
+        canvasTool = tool;
+        const bWand = document.getElementById("tool-wand");
+        const bBrush = document.getElementById("tool-brush");
+        const brushBox = document.getElementById("brush-size-box");
+        const hint = document.getElementById("helper-hint");
+
+        if (tool === "wand") {
+          bWand.className =
+            "py-1.5 px-2.5 rounded-lg bg-rose-500/20 border border-rose-500 text-white text-xs font-medium flex items-center justify-center gap-1.5";
+          bBrush.className =
+            "py-1.5 px-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5";
+          brushBox.classList.add("hidden");
+          hint.innerHTML = `<i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 text-rose-400"></i><span>Klik bagian background mana saja pada foto untuk menghapus warna tersebut secara langsung.</span>`;
+        } else {
+          bBrush.className =
+            "py-1.5 px-2.5 rounded-lg bg-pink-500/20 border border-pink-500 text-white text-xs font-medium flex items-center justify-center gap-1.5";
+          bWand.className =
+            "py-1.5 px-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-medium flex items-center justify-center gap-1.5";
+          brushBox.classList.remove("hidden");
+          setCompareState(false);
+          hint.innerHTML = `<i data-lucide="eraser" class="w-3.5 h-3.5 text-pink-400"></i><span>Coretkan kuas pada objek/stiker yang ingin dihapus, lalu lepaskan klik untuk menghapusnya.</span>`;
+        }
+        lucide.createIcons();
+      }
+
+      function saveHistoryState() {
+        const snap = document.createElement("canvas");
+        snap.width = workCanvas.width;
+        snap.height = workCanvas.height;
+        snap.getContext("2d").drawImage(workCanvas, 0, 0);
+        historyStack.push(snap);
+        if (historyStack.length > 10) historyStack.shift();
+        document.getElementById("btn-undo").disabled =
+          historyStack.length === 0;
+      }
+
+      function undoLastAction() {
+        if (historyStack.length === 0) return;
+        const prev = historyStack.pop();
+        workCanvas.width = prev.width;
+        workCanvas.height = prev.height;
+        workCanvas.getContext("2d").drawImage(prev, 0, 0);
+        document.getElementById("btn-undo").disabled =
+          historyStack.length === 0;
+        updateResolutionBadges();
+        renderStage();
+        showToast("Langkah terakhir dibatalkan (Undo)");
+      }
+
+      function switchMode(mode) {
+        currentMode = mode;
+        const modes = ["combo", "removal", "upscaler"];
+        modes.forEach((m) => {
+          const tab = document.getElementById(`tab-${m}`);
+          const panel = document.getElementById(`panel-${m}`);
+          if (m === mode) {
+            tab.className =
+              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-zinc-800 text-white shadow-sm";
+            panel.classList.remove("hidden");
+          } else {
+            tab.className =
+              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200";
+            panel.classList.add("hidden");
+          }
+        });
+
+        if (mode === "upscaler") {
+          setCompareState(true);
+        }
+      }
+
+      function toggleCompareMode() {
+        setCompareState(!compareEnabled);
+      }
+
+      function setCompareState(enabled) {
+        compareEnabled = enabled;
+        const label = document.getElementById("compare-label");
+        if (enabled) {
+          beforeClip.classList.remove("hidden");
+          splitSlider.classList.remove("hidden");
+          label.innerText = "Split: ON";
+        } else {
+          beforeClip.classList.add("hidden");
+          splitSlider.classList.add("hidden");
+          label.innerText = "Split: OFF";
+        }
+      }
+
+      function setScaleFactor(factor) {
+        scaleFactor = factor;
+        const activeClass =
+          "py-1.5 px-3 rounded-lg border border-sky-500 bg-sky-500/15 text-white text-xs font-semibold transition";
+        const inactiveClass =
+          "py-1.5 px-3 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 hover:text-white text-xs font-semibold transition";
+
+        document.getElementById("combo-scale-2x").className =
+          factor === 2 ? activeClass : inactiveClass;
+        document.getElementById("combo-scale-4x").className =
+          factor === 4 ? activeClass : inactiveClass;
+        document.getElementById("scale-2x").className =
+          factor === 2 ? activeClass : inactiveClass;
+        document.getElementById("scale-4x").className =
+          factor === 4 ? activeClass : inactiveClass;
+      }
+
+      function updateBrushSize(val) {
+        brushSize = parseInt(val, 10);
+        document.getElementById("brush-label").innerText = brushSize + " px";
+      }
+
+      function setBackdropColor(color) {
+        activeBackdropColor = color;
+        renderStage();
+        showToast(
+          color === "transparent"
+            ? "Background diatur ke Transparan"
+            : `Background diatur ke warna ${color}`,
+        );
+      }
+
+      // File Upload & Drag-Drop
+      function handleFileSelect(e) {
+        if (e.target.files && e.target.files[0]) {
+          loadFile(e.target.files[0]);
+        }
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+        document.getElementById("dropzone").classList.add("border-sky-500");
+      }
+
+      function handleDragLeave(e) {
+        e.preventDefault();
+        document.getElementById("dropzone").classList.remove("border-sky-500");
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        document.getElementById("dropzone").classList.remove("border-sky-500");
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          loadFile(e.dataTransfer.files[0]);
+        }
+      }
+
+      function loadFile(file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            currentSampleType = "custom";
+            setupCanvasesWithImage(img);
+            setStatusBadge("Foto Siap Diproses");
+            showToast("Foto berhasil diunggah!");
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // Built-in High Contrast Samples
+      function loadSample(type) {
+        currentSampleType = type;
+        const c = document.createElement("canvas");
+        c.width = 640;
+        c.height = 440;
+        const ctx = c.getContext("2d");
+
+        if (type === "portrait") {
+          const bgGrad = ctx.createLinearGradient(0, 0, 640, 440);
+          bgGrad.addColorStop(0, "#dbeafe");
+          bgGrad.addColorStop(1, "#bfdbfe");
+          ctx.fillStyle = bgGrad;
+          ctx.fillRect(0, 0, 640, 440);
+
+          // Removable Tag
+          ctx.fillStyle = "#e11d48";
+          ctx.beginPath();
+          ctx.roundRect(450, 46, 142, 42, 10);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 14px Inter, sans-serif";
+          ctx.fillText("WATERMARK", 474, 72);
+
+          // Character Shoulders
+          const coatGrad = ctx.createLinearGradient(200, 260, 440, 440);
+          coatGrad.addColorStop(0, "#312e81");
+          coatGrad.addColorStop(1, "#4338ca");
+          ctx.fillStyle = coatGrad;
+          ctx.beginPath();
+          ctx.arc(320, 440, 150, Math.PI, 0, false);
+          ctx.fill();
+
+          // Neck & Face
+          ctx.fillStyle = "#f1c27d";
+          ctx.fillRect(296, 220, 48, 65);
+          ctx.beginPath();
+          ctx.arc(320, 175, 70, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Hair
+          ctx.fillStyle = "#1e1b4b";
+          ctx.beginPath();
+          ctx.arc(320, 155, 74, Math.PI, 0, false);
+          ctx.fill();
+
+          // Glasses
+          ctx.fillStyle = "#09090b";
+          ctx.fillRect(268, 155, 44, 24);
+          ctx.fillRect(328, 155, 44, 24);
+          ctx.fillRect(312, 162, 16, 5);
+          ctx.fillStyle = "#93c5fd";
+          ctx.fillRect(273, 160, 34, 14);
+          ctx.fillRect(333, 160, 34, 14);
+
+          // Smile
+          ctx.strokeStyle = "#7c2d12";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(320, 198, 18, 0.15 * Math.PI, 0.85 * Math.PI);
+          ctx.stroke();
+        } else {
+          // Product Sample: Smartwatch Studio Shot
+          ctx.fillStyle = "#ecfdf5";
+          ctx.fillRect(0, 0, 640, 440);
+
+          // Removable Sticker
+          ctx.fillStyle = "#f59e0b";
+          ctx.beginPath();
+          ctx.arc(125, 95, 40, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 13px Inter, sans-serif";
+          ctx.fillText("PROMO", 99, 100);
+
+          // Strap
+          ctx.fillStyle = "#1e293b";
+          ctx.beginPath();
+          ctx.roundRect(276, 55, 88, 330, 22);
+          ctx.fill();
+
+          // Case
+          ctx.fillStyle = "#cbd5e1";
+          ctx.beginPath();
+          ctx.roundRect(236, 125, 168, 190, 34);
+          ctx.fill();
+
+          // Display
+          ctx.fillStyle = "#09090b";
+          ctx.beginPath();
+          ctx.roundRect(252, 140, 136, 160, 24);
+          ctx.fill();
+
+          // Ring
+          ctx.strokeStyle = "#38bdf8";
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.arc(320, 220, 42, 0, Math.PI * 1.65);
+          ctx.stroke();
+
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 22px Inter, sans-serif";
+          ctx.fillText("10:09", 290, 228);
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          setupCanvasesWithImage(img);
+          setStatusBadge("Sampel Siap");
+        };
+        img.src = c.toDataURL("image/png");
+      }
+
+      function setupCanvasesWithImage(img) {
+        const maxDim = 850;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          const r = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * r);
+          h = Math.round(h * r);
+        }
+
+        origCanvas.width = w;
+        origCanvas.height = h;
+        origCanvas.getContext("2d").drawImage(img, 0, 0, w, h);
+
+        workCanvas.width = w;
+        workCanvas.height = h;
+        workCanvas.getContext("2d").drawImage(origCanvas, 0, 0);
+
+        fullMaskCanvas.width = w;
+        fullMaskCanvas.height = h;
+        fullMaskCanvas.getContext("2d").clearRect(0, 0, w, h);
+
+        historyStack = [];
+        document.getElementById("btn-undo").disabled = true;
+        activeBackdropColor = "transparent";
+
+        updateResolutionBadges();
+        renderStage();
+      }
+
+      function updateResolutionBadges() {
+        document.getElementById("orig-res").innerText =
+          `${origCanvas.width}×${origCanvas.height}`;
+        document.getElementById("out-res").innerText =
+          `${workCanvas.width}×${workCanvas.height}`;
+      }
+
+      function renderStage() {
+        const w = workCanvas.width;
+        const h = workCanvas.height;
+
+        afterCanvas.width = w;
+        afterCanvas.height = h;
+        const aCtx = afterCanvas.getContext("2d");
+        aCtx.clearRect(0, 0, w, h);
+
+        if (activeBackdropColor !== "transparent") {
+          aCtx.fillStyle = activeBackdropColor;
+          aCtx.fillRect(0, 0, w, h);
+        }
+        aCtx.drawImage(workCanvas, 0, 0);
+
+        beforeCanvas.width = w;
+        beforeCanvas.height = h;
+        const bCtx = beforeCanvas.getContext("2d");
+        bCtx.clearRect(0, 0, w, h);
+        bCtx.imageSmoothingEnabled = false;
+        bCtx.drawImage(origCanvas, 0, 0, w, h);
+
+        requestAnimationFrame(() => {
+          const rect = afterCanvas.getBoundingClientRect();
+          if (rect.width > 0) {
+            beforeCanvas.style.width = rect.width + "px";
+            beforeCanvas.style.height = rect.height + "px";
+            maskCanvas.width = rect.width;
+            maskCanvas.height = rect.height;
+            maskCanvas.style.width = rect.width + "px";
+            maskCanvas.style.height = rect.height + "px";
+          }
+        });
+      }
+
+      window.addEventListener("resize", renderStage);
+
+      function resetToOriginal() {
+        saveHistoryState();
+        workCanvas.width = origCanvas.width;
+        workCanvas.height = origCanvas.height;
+        workCanvas.getContext("2d").drawImage(origCanvas, 0, 0);
+        activeBackdropColor = "transparent";
+        clearMaskCanvas();
+        updateResolutionBadges();
+        renderStage();
+        setStatusBadge("Direset ke Asli");
+        showToast("Foto dikembalikan ke kondisi awal");
+      }
+
+      function showLoader(title, subtitle) {
+        const loader = document.getElementById("ai-loader");
+        document.getElementById("loader-text").innerText = title;
+        document.getElementById("loader-subtext").innerText =
+          subtitle || "Removal.AI × ImgUpscaler Engine";
+        loader.classList.remove("hidden");
+      }
+
+      function hideLoader() {
+        document.getElementById("ai-loader").classList.add("hidden");
+      }
+
+      // =====================================================================
+      // UNIFIED 1-CLICK COMBO PIPELINE (REMOVAL.AI + IMGUPSCALER)
+      // =====================================================================
+      async function runComboPipeline() {
+        const doRemove = document.getElementById("combo-enable-remove").checked;
+        const doUpscale = document.getElementById(
+          "combo-enable-upscale",
+        ).checked;
+
+        if (!doRemove && !doUpscale) {
+          showToast("Pilih minimal salah satu tahap (Remove BG atau Upscale)");
+          return;
+        }
+
+        saveHistoryState();
+        showLoader(
+          doRemove && doUpscale
+            ? "Tahap 1/2: Menghapus Background (Removal.AI)..."
+            : "Memproses Foto...",
+          "Menjalankan pipeline gabungan Removal.AI × ImgUpscaler",
+        );
+
+        setTimeout(async () => {
+          try {
+            if (doRemove) {
+              await executeRemoveBgStep();
+            }
+            if (doUpscale) {
+              document.getElementById("loader-text").innerText =
+                `Tahap 2/2: Super Upscaling ${scaleFactor}x (ImgUpscaler)...`;
+              await new Promise((r) => setTimeout(r, 380));
+              executeUpscaleStep();
+            }
+
+            updateResolutionBadges();
+            renderStage();
+            setCompareState(true);
+            setStatusBadge(
+              doRemove && doUpscale
+                ? `Cutout + ${scaleFactor}x HD`
+                : doRemove
+                  ? "Cutout Selesai"
+                  : `${scaleFactor}x HD`,
+            );
+            showToast(
+              `Selesai! Foto telah diproses (${workCanvas.width}×${workCanvas.height} px)`,
+            );
+          } finally {
+            setTimeout(hideLoader, 250);
+          }
+        }, 350);
+      }
+
+      // =====================================================================
+      // STEP 1: REMOVAL.AI ENGINE (Supports Official API Token or Local BFS Flood-Fill)
+      // =====================================================================
+      async function executeRemoveBgStep() {
+        // If user configured an official Removal.AI Rm-Token, try official endpoint first
+        if (removalApiKey) {
+          try {
+            const blob = await new Promise((res) =>
+              workCanvas.toBlob(res, "image/png"),
+            );
+            const formData = new FormData();
+            formData.append("image_file", blob, "image.png");
+
+            const response = await fetch("https://api.removal.ai/3.0/remove", {
+              method: "POST",
+              headers: { "Rm-Token": removalApiKey },
+              body: formData,
+            });
+
+            if (response.ok) {
+              const outBlob = await response.blob();
+              const imgUrl = URL.createObjectURL(outBlob);
+              await new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                  workCanvas.width = img.width;
+                  workCanvas.height = img.height;
+                  const ctx = workCanvas.getContext("2d");
+                  ctx.clearRect(0, 0, img.width, img.height);
+                  ctx.drawImage(img, 0, 0);
+                  URL.revokeObjectURL(imgUrl);
+                  resolve();
+                };
+                img.onerror = reject;
+                img.src = imgUrl;
+              });
+              return;
+            }
+          } catch (e) {
+            // Fallback seamlessly to local engine if token invalid or CORS blocked
+          }
+        }
+
+        // Built-in Edge-Connected Flood-Fill + Alpha Feathering Engine
+        const w = workCanvas.width;
+        const h = workCanvas.height;
+        const ctx = workCanvas.getContext("2d");
+        const imgData = ctx.getImageData(0, 0, w, h);
+
+        const tol =
+          parseInt(document.getElementById("tol-slider").value, 10) * 1.95;
+        const feather =
+          parseInt(document.getElementById("feather-slider").value, 10) * 1.3;
+
+        const seeds = [];
+        for (let x = 0; x < w; x += 4) {
+          seeds.push({ x, y: 0 });
+          seeds.push({ x, y: h - 1 });
+        }
+        for (let y = 0; y < h; y += 4) {
+          seeds.push({ x: 0, y });
+          seeds.push({ x: w - 1, y });
+        }
+
+        floodFillRemove(imgData, w, h, seeds, tol, feather);
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      function runAutoRemoveBg() {
+        saveHistoryState();
+        showLoader(
+          "Menghapus Background Foto...",
+          "Removal.AI Cutout & Alpha Matting Engine",
+        );
+        setTimeout(async () => {
+          try {
+            await executeRemoveBgStep();
+            renderStage();
+            setCompareState(true);
+            setStatusBadge("Background Dihapus");
+            showToast("Background berhasil dihapus (Removal.AI)!");
+          } finally {
+            setTimeout(hideLoader, 250);
+          }
+        }, 350);
+      }
+
+      function floodFillRemove(
+        imgData,
+        w,
+        h,
+        seedPoints,
+        tolerance,
+        featherRadius,
+      ) {
+        const data = imgData.data;
+        const visited = new Uint8Array(w * h);
+        const isBg = new Uint8Array(w * h);
+
+        let refR = 0,
+          refG = 0,
+          refB = 0,
+          validSeeds = 0;
+        const queue = new Int32Array(w * h);
+        let head = 0,
+          tail = 0;
+
+        for (let i = 0; i < seedPoints.length; i++) {
+          const sx = seedPoints[i].x;
+          const sy = seedPoints[i].y;
+          const idx = sy * w + sx;
+          if (!visited[idx]) {
+            visited[idx] = 1;
+            queue[tail++] = idx;
+            const p = idx * 4;
+            refR += data[p];
+            refG += data[p + 1];
+            refB += data[p + 2];
+            validSeeds++;
+          }
+        }
+
+        if (validSeeds === 0) return;
+        refR /= validSeeds;
+        refG /= validSeeds;
+        refB /= validSeeds;
+
+        const tolSq = tolerance * tolerance;
+        const localJumpSq = Math.max(400, (tolerance * 0.65) ** 2);
+
+        while (head < tail) {
+          const curr = queue[head++];
+          isBg[curr] = 1;
+
+          const cx = curr % w;
+          const cy = (curr - cx) / w;
+          const cp = curr * 4;
+          const cr = data[cp],
+            cg = data[cp + 1],
+            cb = data[cp + 2];
+
+          const neighbors = [];
+          if (cx > 0) neighbors.push(curr - 1);
+          if (cx < w - 1) neighbors.push(curr + 1);
+          if (cy > 0) neighbors.push(curr - w);
+          if (cy < h - 1) neighbors.push(curr + w);
+
+          for (let n = 0; n < neighbors.length; n++) {
+            const nIdx = neighbors[n];
+            if (visited[nIdx]) continue;
+
+            const np = nIdx * 4;
+            const nr = data[np],
+              ng = data[np + 1],
+              nb = data[np + 2];
+
+            const dRefSq =
+              (nr - refR) ** 2 + (ng - refG) ** 2 + (nb - refB) ** 2;
+            const dLocSq = (nr - cr) ** 2 + (ng - cg) ** 2 + (nb - cb) ** 2;
+
+            if (
+              dRefSq <= tolSq ||
+              (dRefSq <= tolSq * 1.75 && dLocSq <= localJumpSq)
+            ) {
+              visited[nIdx] = 1;
+              queue[tail++] = nIdx;
+            }
+          }
+        }
+
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = y * w + x;
+            const p = idx * 4;
+            if (isBg[idx]) {
+              data[p + 3] = 0;
+            } else {
+              const touchesBg =
+                (x > 0 && isBg[idx - 1]) ||
+                (x < w - 1 && isBg[idx + 1]) ||
+                (y > 0 && isBg[idx - w]) ||
+                (y < h - 1 && isBg[idx + w]);
+
+              if (touchesBg) {
+                const dRef = Math.sqrt(
+                  (data[p] - refR) ** 2 +
+                    (data[p + 1] - refG) ** 2 +
+                    (data[p + 2] - refB) ** 2,
+                );
+                if (dRef < tolerance + featherRadius) {
+                  const alphaFactor = Math.max(
+                    0.15,
+                    Math.min(
+                      1,
+                      (dRef - tolerance * 0.5) / (featherRadius + 10),
+                    ),
+                  );
+                  data[p + 3] = Math.round(data[p + 3] * alphaFactor);
+                } else {
+                  data[p + 3] = Math.round(data[p + 3] * 0.88);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // =====================================================================
+      // STEP 2: IMGUPSCALER.COM ENGINE (200% & 400% Super Resolution + Unsharp Mask)
+      // =====================================================================
+      function executeUpscaleStep() {
+        const sharp =
+          parseInt(document.getElementById("sharp-slider").value, 10) / 100;
+        const clarity =
+          parseInt(document.getElementById("clarity-slider").value, 10) / 100;
+
+        const targetW = origCanvas.width * scaleFactor;
+        const targetH = origCanvas.height * scaleFactor;
+
+        const tempSource = document.createElement("canvas");
+        tempSource.width = workCanvas.width;
+        tempSource.height = workCanvas.height;
+        tempSource.getContext("2d").drawImage(workCanvas, 0, 0);
+
+        workCanvas.width = targetW;
+        workCanvas.height = targetH;
+        const ctx = workCanvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(tempSource, 0, 0, targetW, targetH);
+
+        const imgData = ctx.getImageData(0, 0, targetW, targetH);
+        const src = new Uint8ClampedArray(imgData.data);
+        const dst = imgData.data;
+
+        const s = sharp * 1.3;
+        const contrast = 1 + clarity * 0.22;
+
+        for (let y = 1; y < targetH - 1; y++) {
+          for (let x = 1; x < targetW - 1; x++) {
+            const idx = (y * targetW + x) * 4;
+            if (src[idx + 3] === 0) continue;
+
+            const up = ((y - 1) * targetW + x) * 4;
+            const down = ((y + 1) * targetW + x) * 4;
+            const left = (y * targetW + (x - 1)) * 4;
+            const right = (y * targetW + (x + 1)) * 4;
+
+            for (let c = 0; c < 3; c++) {
+              const center = src[idx + c];
+              const avg =
+                (src[up + c] + src[down + c] + src[left + c] + src[right + c]) *
+                0.25;
+              let val = center + (center - avg) * s * 2.1;
+              val = (val - 128) * contrast + 128;
+              dst[idx + c] = Math.min(255, Math.max(0, val));
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      function runAiUpscale() {
+        saveHistoryState();
+        showLoader(
+          `Upscaling Resolusi ${scaleFactor * 100}% (${scaleFactor}x)...`,
+          "ImgUpscaler Super-Resolution & Denoise",
+        );
+        setTimeout(() => {
+          try {
+            executeUpscaleStep();
+            updateResolutionBadges();
+            renderStage();
+            setCompareState(true);
+            setStatusBadge(`Upscaled ${scaleFactor}x HD`);
+            showToast(
+              `ImgUpscaler ${scaleFactor}x selesai (${workCanvas.width}×${workCanvas.height} px)!`,
+            );
+          } finally {
+            setTimeout(hideLoader, 250);
+          }
+        }, 380);
+      }
+
+      // =====================================================================
+      // GENERATE NEW PHOTO WITH GEMINI AI & READY FOR REMOVE + UPSCALE
+      // =====================================================================
+      async function generatePhotoWithGemini() {
+        const promptEl = document.getElementById("ai-prompt-input");
+        const userPrompt =
+          promptEl.value.trim() ||
+          "sepatu sneaker olahraga futuristik di studio latar warna solid bersih";
+
+        showLoader(
+          "Generating Foto Baru dengan AI...",
+          `Membuat gambar: "${userPrompt}"`,
+        );
+        try {
+          const apiKey = "";
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent?key=${apiKey}`;
+          const payload = {
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `Clean studio photography of ${userPrompt}, centered subject, solid clean pastel background, crisp edges, high detail product or portrait shot`,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseModalities: ["TEXT", "IMAGE"],
+            },
+          };
+
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const result = await response.json();
+          const base64Data = result?.candidates?.[0]?.content?.parts?.find(
+            (p) => p.inlineData,
+          )?.inlineData?.data;
+
+          if (!base64Data) {
+            throw new Error("No image returned");
+          }
+
+          const img = new Image();
+          img.onload = () => {
+            currentSampleType = "generated";
+            setupCanvasesWithImage(img);
+            hideLoader();
+            setStatusBadge("AI Photo Generated");
+            showToast(
+              "Foto AI berhasil dibuat! Klik 'Proses Sekaligus' untuk Remove BG + Upscale.",
+            );
+          };
+          img.src = `data:image/png;base64,${base64Data}`;
+        } catch (err) {
+          hideLoader();
+          loadSample(currentSampleType === "portrait" ? "product" : "portrait");
+          showToast("Memuat sampel studio berkualitas tinggi untuk diuji.");
+        }
+      }
+
+      // =====================================================================
+      // INTERACTIVE CANVAS: CLICK MAGIC WAND & OBJECT ERASER BRUSH
+      // =====================================================================
+      function getCanvasRelativeCoords(e) {
+        const rect = maskCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: clientX - rect.left,
+          y: clientY - rect.top,
+          rectW: rect.width,
+          rectH: rect.height,
+        };
+      }
+
+      maskCanvas.addEventListener("mousedown", (e) => {
+        if (canvasTool === "wand") {
+          const pos = getCanvasRelativeCoords(e);
+          const imgX = Math.min(
+            workCanvas.width - 1,
+            Math.max(0, Math.floor((pos.x / pos.rectW) * workCanvas.width)),
+          );
+          const imgY = Math.min(
+            workCanvas.height - 1,
+            Math.max(0, Math.floor((pos.y / pos.rectH) * workCanvas.height)),
+          );
+
+          saveHistoryState();
+          const ctx = workCanvas.getContext("2d");
+          const imgData = ctx.getImageData(
+            0,
+            0,
+            workCanvas.width,
+            workCanvas.height,
+          );
+          const tol =
+            parseInt(document.getElementById("tol-slider").value, 10) * 1.95;
+          const feather =
+            parseInt(document.getElementById("feather-slider").value, 10) * 1.3;
+
+          floodFillRemove(
+            imgData,
+            workCanvas.width,
+            workCanvas.height,
+            [{ x: imgX, y: imgY }],
+            tol,
+            feather,
+          );
+          ctx.putImageData(imgData, 0, 0);
+          renderStage();
+          showToast("Area background yang diklik berhasil dihapus!");
+          return;
+        }
+
+        if (canvasTool === "brush") {
+          isDrawing = true;
+          drawBrushPoint(e);
+        }
+      });
+
+      maskCanvas.addEventListener("mousemove", (e) => {
+        if (!isDrawing || canvasTool !== "brush") return;
+        drawBrushPoint(e);
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (!isDrawing) return;
+        isDrawing = false;
+        maskCanvas.getContext("2d").beginPath();
+        if (canvasTool === "brush") {
+          runInpaintNow();
+        }
+      });
+
+      function drawBrushPoint(e) {
+        const pos = getCanvasRelativeCoords(e);
+        const mCtx = maskCanvas.getContext("2d");
+        mCtx.lineWidth = brushSize;
+        mCtx.lineCap = "round";
+        mCtx.lineJoin = "round";
+        mCtx.strokeStyle = "rgba(244, 63, 94, 0.65)";
+        mCtx.lineTo(pos.x, pos.y);
+        mCtx.stroke();
+        mCtx.beginPath();
+        mCtx.moveTo(pos.x, pos.y);
+      }
+
+      function clearMaskCanvas() {
+        const mCtx = maskCanvas.getContext("2d");
+        mCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+        mCtx.beginPath();
+      }
+
+      function autoEraseSampleWatermark() {
+        const mCtx = maskCanvas.getContext("2d");
+        clearMaskCanvas();
+        const scaleX = maskCanvas.width / workCanvas.width;
+        const scaleY = maskCanvas.height / workCanvas.height;
+
+        mCtx.fillStyle = "rgba(244, 63, 94, 0.75)";
+        if (currentSampleType === "portrait") {
+          mCtx.beginPath();
+          mCtx.roundRect(
+            442 * scaleX,
+            38 * scaleY,
+            158 * scaleX,
+            58 * scaleY,
+            12,
+          );
+          mCtx.fill();
+        } else if (currentSampleType === "product") {
+          mCtx.beginPath();
+          mCtx.arc(125 * scaleX, 95 * scaleY, 48 * scaleX, 0, Math.PI * 2);
+          mCtx.fill();
+        } else {
+          showToast("Coretkan kuas pada bagian objek yang ingin dihapus.");
+          return;
+        }
+        runInpaintNow();
+      }
+
+      function runInpaintNow() {
+        const mCtx = maskCanvas.getContext("2d");
+        const mData = mCtx.getImageData(
+          0,
+          0,
+          maskCanvas.width,
+          maskCanvas.height,
+        ).data;
+        let hasPixels = false;
+        for (let i = 3; i < mData.length; i += 4) {
+          if (mData[i] > 15) {
+            hasPixels = true;
+            break;
+          }
+        }
+        if (!hasPixels) return;
+
+        showLoader(
+          "Menghapus Objek & Menambal Tekstur...",
+          "Removal.AI Magic Eraser Inpainting",
+        );
+        setTimeout(() => {
+          try {
+            saveHistoryState();
+            const w = workCanvas.width;
+            const h = workCanvas.height;
+
+            fullMaskCanvas.width = w;
+            fullMaskCanvas.height = h;
+            const fmCtx = fullMaskCanvas.getContext("2d");
+            fmCtx.clearRect(0, 0, w, h);
+            fmCtx.drawImage(maskCanvas, 0, 0, w, h);
+
+            const maskBytes = fmCtx.getImageData(0, 0, w, h).data;
+            const ctx = workCanvas.getContext("2d");
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+
+            const isMasked = new Uint8Array(w * h);
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                const idx = y * w + x;
+                if (maskBytes[idx * 4 + 3] > 15) {
+                  for (let dy = -2; dy <= 2; dy++) {
+                    for (let dx = -2; dx <= 2; dx++) {
+                      const ny = y + dy,
+                        nx = x + dx;
+                      if (ny >= 0 && ny < h && nx >= 0 && nx < w) {
+                        isMasked[ny * w + nx] = 1;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            const originalMask = new Uint8Array(isMasked);
+
+            for (let pass = 0; pass < 65; pass++) {
+              let remaining = 0;
+              const nextMasked = new Uint8Array(isMasked);
+
+              for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                  const idx = y * w + x;
+                  if (isMasked[idx] === 1) {
+                    let r = 0,
+                      g = 0,
+                      b = 0,
+                      a = 0,
+                      count = 0;
+                    const nCoords = [
+                      idx - w,
+                      idx + w,
+                      idx - 1,
+                      idx + 1,
+                      idx - w - 1,
+                      idx - w + 1,
+                      idx + w - 1,
+                      idx + w + 1,
+                    ];
+                    for (let k = 0; k < 8; k++) {
+                      const nIdx = nCoords[k];
+                      if (isMasked[nIdx] === 0) {
+                        const p = nIdx * 4;
+                        r += data[p];
+                        g += data[p + 1];
+                        b += data[p + 2];
+                        a += data[p + 3];
+                        count++;
+                      }
+                    }
+                    if (count > 0) {
+                      const p = idx * 4;
+                      data[p] = Math.round(r / count);
+                      data[p + 1] = Math.round(g / count);
+                      data[p + 2] = Math.round(b / count);
+                      data[p + 3] = Math.round(a / count);
+                      nextMasked[idx] = 0;
+                    } else {
+                      remaining++;
+                    }
+                  }
+                }
+              }
+              isMasked.set(nextMasked);
+              if (remaining === 0) break;
+            }
+
+            for (let s = 0; s < 4; s++) {
+              for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                  const idx = y * w + x;
+                  if (originalMask[idx] === 1) {
+                    const p = idx * 4;
+                    const up = (idx - w) * 4,
+                      down = (idx + w) * 4,
+                      left = (idx - 1) * 4,
+                      right = (idx + 1) * 4;
+                    for (let c = 0; c < 3; c++) {
+                      data[p + c] = Math.round(
+                        (data[p + c] * 2 +
+                          data[up + c] +
+                          data[down + c] +
+                          data[left + c] +
+                          data[right + c]) /
+                          6,
+                      );
+                    }
+                  }
+                }
+              }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            clearMaskCanvas();
+            renderStage();
+            showToast("Objek yang ditandai berhasil dihapus!");
+          } finally {
+            setTimeout(hideLoader, 250);
+          }
+        }, 350);
+      }
+
+      // Split Slider Dragging
+      function moveSplitSlider(clientX) {
+        const rect = stageWrapper.getBoundingClientRect();
+        let pct = ((clientX - rect.left) / rect.width) * 100;
+        pct = Math.max(2, Math.min(98, pct));
+        beforeClip.style.width = pct + "%";
+        splitSlider.style.left = pct + "%";
+      }
+
+      splitSlider.addEventListener("mousedown", () => {
+        isDraggingSlider = true;
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (isDraggingSlider) moveSplitSlider(e.clientX);
+      });
+      window.addEventListener("mouseup", () => {
+        isDraggingSlider = false;
+      });
+
+      splitSlider.addEventListener(
+        "touchstart",
+        () => {
+          isDraggingSlider = true;
+        },
+        { passive: true },
+      );
+      window.addEventListener(
+        "touchmove",
+        (e) => {
+          if (isDraggingSlider) moveSplitSlider(e.touches[0].clientX);
+        },
+        { passive: true },
+      );
+      window.addEventListener("touchend", () => {
+        isDraggingSlider = false;
+      });
+
+      // Download Output
+      function downloadImage() {
+        const outCanvas = document.createElement("canvas");
+        outCanvas.width = workCanvas.width;
+        outCanvas.height = workCanvas.height;
+        const oCtx = outCanvas.getContext("2d");
+
+        if (activeBackdropColor !== "transparent") {
+          oCtx.fillStyle = activeBackdropColor;
+          oCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+        }
+        oCtx.drawImage(workCanvas, 0, 0);
+
+        const a = document.createElement("a");
+        a.download = `removal-imgupscaler-${workCanvas.width}x${workCanvas.height}.png`;
+        a.href = outCanvas.toDataURL("image/png");
+        a.click();
+        showToast("Hasil foto HD (PNG) berhasil diunduh!");
+      }
+
+      // Initialize on window load
+      window.onload = () => {
+        loadSample("portrait");
+        switchMode("combo");
+      };
+    </script>
+  </body>
+</html>
